@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音效标注人力能力筛选</title>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap">
+<style>
+  :root{
+    --bg:#0a1618;
+    --surface:#112226;
+    --surface2:#18302f;
+    --line:#2a4544;
+    --ink:#e7f1ef;
+    --muted:#8fa7a4;
+    --signal:#2fd4b4;
+    --signal-soft:#7be8d0;
+    --ok:#6fbf8a;
+    --bad:#e07866;
+    --on-signal:#06231d;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Noto Sans SC",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .shell{max-width:720px;margin:0 auto;padding:0 20px 64px;}
+  header.apphead{padding:26px 20px 10px;text-align:center;}
+  .brand{display:flex;align-items:center;justify-content:center;gap:10px;}
+  .brand .logo{width:38px;height:38px;border-radius:10px;background:var(--signal);display:flex;align-items:center;justify-content:center;flex:none;}
+  .brand .logo svg{width:22px;height:22px;stroke:var(--on-signal);}
+  .brand h1{font-size:19px;font-weight:900;letter-spacing:.5px;}
+  .apphead p{color:var(--muted);font-size:13px;margin-top:6px;}
+  .view{display:none;}
+  .view.active{display:block;animation:fadein .35s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-top:18px;}
+  .card h2{font-size:17px;font-weight:700;}
+  .card .sub{color:var(--muted);font-size:13px;margin-top:4px;}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--signal);color:var(--on-signal);font-weight:700;font-size:12px;padding:3px 10px;border-radius:999px;}
+  .kicker{color:var(--signal);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+  .hero{text-align:center;padding:26px 6px 4px;}
+  .hero h2{font-size:26px;font-weight:900;line-height:1.35;}
+  .hero .desc{color:var(--muted);font-size:14px;max-width:540px;margin:14px auto 0;}
+  .rulebox{background:var(--surface2);border:1px dashed var(--line);border-radius:12px;padding:16px 18px;margin:20px auto 0;max-width:560px;text-align:left;font-size:13.5px;}
+  .rulebox b{color:var(--signal-soft);}
+  .rulebox li{margin:6px 0 6px 18px;color:#d3e0dd;}
+  .field{margin-top:18px;}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px;}
+  .input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-size:15px;padding:12px 14px;font-family:inherit;}
+  .input:focus{outline:none;border-color:var(--signal);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--signal);color:var(--on-signal);font-weight:700;font-size:15px;border:none;border-radius:12px;padding:14px 26px;cursor:pointer;transition:transform .08s ease,background .15s ease;font-family:inherit;}
+  .btn:hover{background:var(--signal-soft);}
+  .btn:active{transform:scale(.98);}
+  .btn.block{width:100%;}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+  .btn.ghost:hover{background:var(--surface2);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .center{text-align:center;}
+  .hint{color:var(--muted);font-size:12.5px;margin-top:10px;}
+  .player{display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:16px 0 14px;}
+  .play-btn{width:48px;height:48px;flex:none;border-radius:50%;border:none;background:var(--signal);color:var(--on-signal);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .08s ease;}
+  .play-btn:hover{background:var(--signal-soft);}
+  .play-btn:active{transform:scale(.94);}
+  .play-btn svg{width:22px;height:22px;}
+  .eq{display:flex;align-items:flex-end;gap:4px;height:26px;flex:none;}
+  .eq span{width:5px;background:var(--signal);border-radius:2px;height:6px;transition:height .1s ease;}
+  .player.playing .eq span{animation:eq .9s ease-in-out infinite;}
+  .player.playing .eq span:nth-child(1){animation-delay:.0s;}
+  .player.playing .eq span:nth-child(2){animation-delay:.15s;}
+  .player.playing .eq span:nth-child(3){animation-delay:.3s;}
+  .player.playing .eq span:nth-child(4){animation-delay:.45s;}
+  .player.playing .eq span:nth-child(5){animation-delay:.6s;}
+  @keyframes eq{0%,100%{height:6px;}50%{height:26px;}}
+  .pmeta{flex:1;min-width:0;}
+  .plabel{font-size:12px;color:var(--muted);}
+  .prog{height:4px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden;}
+  .prog-fill{height:100%;width:0;background:var(--signal);border-radius:2px;}
+  .ptime{font-size:11px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums;}
+  /* 视频播放器 */
+  .vplayer{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:16px 0 14px;}
+  .vplayer .plabel{margin-bottom:9px;}
+  .vvideo{width:100%;display:block;border-radius:10px;background:#000;max-height:400px;}
+  .vph{border:1.5px dashed var(--line);border-radius:10px;padding:38px 16px;text-align:center;color:var(--muted);font-size:13.5px;background:rgba(255,255,255,.02);}
+  .q-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-top:18px;}
+  .q-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .q-index{width:32px;height:32px;flex:none;border-radius:9px;background:var(--signal);color:var(--on-signal);font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;}
+  .q-title{font-size:15.5px;font-weight:700;flex:1;}
+  .opt{display:block;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:11px;padding:13px 15px;margin-top:10px;font-size:14.5px;cursor:pointer;font-family:inherit;transition:border-color .12s,background .12s;}
+  .opt:hover{border-color:var(--signal);}
+  .opt.sel{border-color:var(--signal);background:rgba(47,212,180,.12);}
+  .opt .optkey{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.06);font-size:12px;font-weight:700;margin-right:10px;color:var(--signal-soft);}
+  .opt.sel .optkey{background:var(--signal);color:var(--on-signal);}
+  .score-ring{width:150px;height:150px;border-radius:50%;margin:18px auto;display:flex;flex-direction:column;align-items:center;justify-content:center;border:6px solid var(--line);position:relative;}
+  .score-ring .num{font-size:40px;font-weight:900;line-height:1;}
+  .score-ring .lbl{font-size:12px;color:var(--muted);margin-top:4px;}
+  .score-ring.pass{border-color:var(--ok);}
+  .score-ring.fail{border-color:var(--bad);}
+  .verdict{text-align:center;font-size:17px;font-weight:700;margin-top:6px;}
+  .verdict.pass{color:var(--ok);}
+  .verdict.fail{color:var(--bad);}
+  .result-item{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;}
+  .result-item h3{font-size:14px;color:var(--signal-soft);}
+  .result-item .rtxt{font-size:13.5px;color:#d3e0dd;margin-top:6px;white-space:pre-wrap;}
+  .result-item .rmeta{font-size:12px;color:var(--muted);margin-top:4px;}
+  .codebox{background:var(--surface2);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;text-align:center;margin-top:16px;}
+  .codebox .code{font-size:30px;font-weight:900;letter-spacing:6px;color:var(--signal-soft);font-variant-numeric:tabular-nums;}
+  .txtout{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-size:13px;padding:14px;margin-top:14px;min-height:140px;font-family:inherit;white-space:pre-wrap;}
+  .msg{display:none;background:rgba(224,120,102,.14);border:1px solid var(--bad);color:#f3b8ae;border-radius:10px;padding:11px 14px;font-size:13px;margin-top:14px;}
+  .msg.show{display:block;}
+  .msg.ok{background:rgba(111,191,138,.12);border-color:var(--ok);color:#bce7cb;}
+  textarea.input{min-height:130px;resize:vertical;}
+  .filebox{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px dashed var(--line);border-radius:11px;padding:12px 14px;}
+  .filebox .fname{flex:1;min-width:0;font-size:13.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .filebox .fname.has{color:var(--ink);}
+  .file-btn{background:transparent;border:1px solid var(--signal);color:var(--signal-soft);border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex:none;}
+  .file-btn:hover{background:rgba(47,212,180,.12);}
+  .footer{margin-top:34px;text-align:center;color:#516664;font-size:12px;}
+  .steps{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+  .step{display:flex;gap:12px;align-items:flex-start;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;}
+  .step .n{width:26px;height:26px;flex:none;border-radius:8px;background:var(--signal);color:var(--on-signal);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;}
+  .step .t{font-size:13.5px;}
+  .step .t b{display:block;font-size:14.5px;}
+  .p2note{font-size:12.5px;color:var(--muted);}
+  /* ===== 网页版答卷查看（招聘方） ===== */
+  .rv-top{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:14px;}
+  .rv-codebig{display:flex;flex-direction:column;gap:4px;}
+  .rv-codebig span{font-size:11px;color:var(--muted);letter-spacing:1px;}
+  .rv-codebig b{font-size:28px;font-weight:900;letter-spacing:4px;color:var(--signal-soft);font-variant-numeric:tabular-nums;}
+  .rv-meta{flex:1;min-width:200px;font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:5px;}
+  .rv-meta b{color:var(--ink);font-weight:700;}
+  .rv-scorebox{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .rv-score{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;}
+  .rv-badge{font-size:13px;font-weight:700;padding:4px 14px;border-radius:999px;}
+  .rv-badge.ok{background:rgba(111,191,138,.16);color:var(--ok);border:1px solid var(--ok);}
+  .rv-badge.bad{background:rgba(224,120,102,.16);color:var(--bad);border:1px solid var(--bad);}
+  .rv-list{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
+  .rv-q{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .rv-qhead{display:flex;align-items:center;gap:10px;}
+  .rv-qno{width:26px;height:26px;flex:none;border-radius:8px;background:var(--signal);color:var(--on-signal);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;}
+  .rv-qq{flex:1;font-size:14px;font-weight:700;}
+  .rv-qtag{font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;flex:none;}
+  .rv-qtag.ok{color:var(--ok);background:rgba(111,191,138,.14);}
+  .rv-qtag.bad{color:var(--bad);background:rgba(224,120,102,.14);}
+  .rv-opt{margin-top:8px;font-size:13.5px;padding:8px 12px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid transparent;color:#cdd9d6;}
+  .rv-opt.correct{border-color:var(--ok);background:rgba(111,191,138,.10);color:#bce7cb;font-weight:700;}
+  .rv-opt.wrongpick{border-color:var(--bad);background:rgba(224,120,102,.10);color:#f3b8ae;}
+  .rv-song{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;}
+  .rv-song-h{font-size:14px;font-weight:700;color:var(--signal-soft);}
+  .rv-song-t{font-size:13.5px;color:#d9e5e2;margin-top:8px;white-space:pre-wrap;}
+  .rv-empty{font-size:13px;color:var(--muted);margin-top:8px;}
+  .rv-q .player,.rv-song .player,.rv-song .vplayer{margin-top:10px;}
+  .rv-grade-row{display:flex;gap:22px;margin-top:14px;font-size:14.5px;flex-wrap:wrap;}
+  .rv-grade-row label{display:flex;align-items:center;gap:7px;cursor:pointer;}
+  .rv-grade-row input{accent-color:var(--signal);width:17px;height:17px;}
+  .rv-rate{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px;}
+  .rv-rate .rt-label{font-size:12.5px;color:var(--muted);margin-right:2px;}
+  .rv-rate .rt-chip{min-width:30px;height:28px;padding:0 8px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;user-select:none;transition:all .12s;}
+  .rv-rate .rt-chip:hover{border-color:var(--signal);}
+  .rv-rate .rt-chip.on{background:var(--signal);border-color:var(--signal);color:var(--on-signal);}
+  .rv-rate .rt-max{font-size:12px;color:var(--muted);}
+  .rv-note-in{flex:1;min-width:150px;margin-left:6px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:7px 10px;font-size:13px;}
+  .rv-note-in:focus{outline:none;border-color:var(--signal);}
+  .rv-subtotal{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px;padding:12px 16px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;font-size:14px;}
+  .rv-subtotal b{color:var(--signal-soft);font-variant-numeric:tabular-nums;font-size:16px;}
+  .rv-report{width:100%;min-height:150px;margin-top:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.65;white-space:pre-wrap;}
+  /* 打印专用成绩单：屏幕隐藏，仅打印时显示 */
+  #rv-print-sheet{display:none;}
+  .ps-title{font-size:21px;font-weight:900;text-align:center;letter-spacing:2px;margin:0 0 4px;}
+  .ps-sub{text-align:center;font-size:11.5px;color:#555;letter-spacing:1px;margin-bottom:14px;}
+  .ps-head{font-size:12.5px;line-height:1.9;border:1px solid #999;border-radius:8px;padding:9px 12px;margin-bottom:6px;}
+  .ps-sec{font-weight:800;font-size:13.5px;margin:13px 0 5px;padding-bottom:3px;border-bottom:1px solid #999;}
+  .ps-row{font-size:12.5px;line-height:1.85;margin:2px 0;}
+  .ps-ans{color:#444;font-size:11.5px;}
+  .ps-total{font-weight:800;font-size:13.5px;margin-top:9px;}
+  .linkrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+  @media print{
+    header.apphead,.apphead,.footer,.btn{display:none!important;}
+    body{background:#fff;color:#111;}
+    .shell{max-width:100%;}
+    .view{display:none!important;}
+    #view-review{display:block!important;}
+    #view-review>*{display:none!important;}
+    #rv-print-sheet{display:block!important;}
+    #rv-print-sheet .ps-row,#rv-print-sheet .ps-sec{break-inside:avoid;}
+  }
+  @media (max-width:480px){
+    .shell{padding:0 14px 48px;}
+    .hero h2{font-size:22px;}
+    .card{padding:18px;}
+    .player{padding:10px 12px;gap:12px;}
+    .play-btn{width:44px;height:44px;}
+  }
+</style>
+</head>
+<body>
+<header class="apphead">
+  <div class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></svg>
+    </div>
+    <h1>音效标注人力能力筛选</h1>
+  </div>
+  <p>声音听辨 · 硬门槛 · 每人随机抽题</p>
+</header>
+
+<main class="shell">
+
+  <!-- ===== 首页：简历递交窗口 ===== -->
+  <section id="view-landing" class="view active">
+    <div class="hero">
+      <span class="kicker">Sound Screening</span>
+      <h2>音效标注人力能力<br>筛选测试</h2>
+      <p class="desc">测试你的耳朵：辨别人声、音效、环境音与声音属性，并观看视频、描述其中的声音构成（人声 / 音效 / 环境音）。题目为每人随机抽取，请戴耳机独立完成。</p>
+    </div>
+    <div class="card">
+      <span class="kicker">报名与简历</span>
+      <h2 style="margin-top:6px;">先递交报名信息</h2>
+      <div class="field">
+        <label for="name-input">姓名 / 编号 *</label>
+        <input class="input" id="name-input" type="text" placeholder="例如：张三 / SFX-0001" maxlength="30" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="contact-input">联系方式（电话 / 微信）</label>
+        <input class="input" id="contact-input" type="text" placeholder="用于招聘方联系你" maxlength="60" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="email-input">邮箱 *（用于接收筛选结果通知）</label>
+        <input class="input" id="email-input" type="email" placeholder="例如：name@example.com" maxlength="80" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>简历</label>
+        <div class="filebox">
+          <span class="fname" id="resume-name">未选择简历文件</span>
+          <button type="button" class="file-btn" id="btn-pick-resume">选择文件</button>
+          <input type="file" id="resume-input" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" hidden>
+        </div>
+        <p class="hint">完成测试后，在结果页点击「一键提交到汇总表」，报名信息、邮箱与答卷链接会自动填好，届时上传简历即可（每人仅限提交一次）。</p>
+      </div>
+      <div class="center" style="margin-top:14px;">
+        <button class="btn ghost block" id="btn-submit-resume" type="button" disabled>完成测试后 · 结果页一键提交</button>
+      </div>
+      <div class="msg" id="landing-msg">请先填写姓名/编号。</div>
+    </div>
+    <div class="card">
+      <span class="kicker">测试流程</span>
+      <h2 style="margin-top:6px;">两个部分</h2>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div class="t"><b>听辨硬门槛 · 30 题</b>从 100 题题库随机抽取 30 道声音听辨选择题（人声 / 环境音 / 音效 / 声音属性），提交后自动判分，达到通过线（70%）才能继续。</div></div>
+        <div class="step"><div class="n">2</div><div class="t"><b>视频声音描述 · 2 段</b>随机抽取 2 段视频，观看后分别描述其中的人声、音效、环境音（含出现顺序），由招聘方人工评阅打分。</div></div>
+      </div>
+      <div class="center" style="margin-top:22px;">
+        <button class="btn block" id="btn-start" type="button">进入测试</button>
+      </div>
+    </div>
+    <div class="card">
+      <span class="kicker">招聘方 · 查看答卷</span>
+      <h2 style="margin-top:6px;">网页版答卷查询</h2>
+      <div class="field" style="margin-top:12px;">
+        <label>粘贴候选人发给你的「网页版答卷链接」</label>
+        <input class="input" id="admin-link" type="text" placeholder="https://…#r=xxxx（结果页可复制）" autocomplete="off">
+      </div>
+      <div class="linkrow">
+        <button class="btn" id="btn-admin-open-link" type="button" style="padding:10px 18px;font-size:13.5px;">查看网页版答卷</button>
+        <button class="btn ghost" id="btn-admin-base" type="button" style="padding:10px 18px;font-size:13.5px;">打开飞书提交表单</button>
+      </div>
+      <p class="hint">无后端模式：答卷内容封装在链接里，粘贴链接即可看到排版好的网页版答卷，测试码用于核对身份。</p>
+    </div>
+  </section>
+
+  <!-- ===== 第一部分 ===== -->
+  <section id="view-part1" class="view">
+    <div class="card">
+      <span class="kicker">Part 1 · 听辨硬门槛</span>
+      <h2 style="margin-top:6px;">声音听辨选择题</h2>
+      <p class="sub">共 <span id="p1-total">0</span> 题。点击播放音频，选择最符合的答案。<b style="color:var(--signal-soft);">达到通过线（70%）才能进入下一部分</b>。</p>
+      <div class="msg" id="part1-msg">还有题目未作答，请完成后再提交。</div>
+    </div>
+    <div id="p1-list"></div>
+    <div class="center" style="margin-top:22px;">
+      <button class="btn block" id="btn-p1-submit" type="button">提交第一部分</button>
+    </div>
+  </section>
+
+  <!-- ===== 第一部分结果 ===== -->
+  <section id="view-part1result" class="view">
+    <div class="card center">
+      <span class="kicker">Part 1 · 结果</span>
+      <div class="score-ring" id="p1-ring">
+        <div class="num" id="p1-num">0/0</div>
+        <div class="lbl">第一部分得分</div>
+      </div>
+      <div class="verdict" id="p1-verdict"></div>
+      <p class="desc" id="p1-verdict-sub" style="max-width:480px;margin:12px auto 0;"></p>
+    </div>
+    <div id="p1-result-body"></div>
+    <div class="center" style="margin-top:22px;" id="p1-next-wrap"></div>
+  </section>
+
+  <!-- ===== 第二部分引导 ===== -->
+  <section id="view-part2intro" class="view">
+    <div class="card">
+      <span class="kicker">Part 2 · 视频声音描述</span>
+      <h2 style="margin-top:6px;">描述视频里的声音</h2>
+      <p class="sub">系统为你随机抽取 <span id="p2-count">0</span> 段视频。请戴上耳机、完整观看，按下面三类拆解描述其中的声音。</p>
+      <div class="rulebox">
+        <b>描述要点（三类都要覆盖）</b>
+        <ul>
+          <li><b>人声</b>：是否有人声、几个人、性别 / 大致年龄、情绪、在说话 / 喊叫 / 哭笑 / 歌唱。</li>
+          <li><b>音效</b>：动作声与物体声，如脚步、开关门、碰撞、操作、摩擦等，尽量逐一列出。</li>
+          <li><b>环境音</b>：空间与场景（室内 / 室外、自然 / 城市）、背景底噪、声音远近与空间混响。</li>
+          <li><b>顺序</b>：尽量按声音出现的先后 / 时间段描述，便于核对。</li>
+        </ul>
+      </div>
+      <div class="center" style="margin-top:24px;">
+        <button class="btn" id="btn-p2-start" type="button">开始第二部分</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 第二部分 ===== -->
+  <section id="view-part2" class="view">
+    <div class="card">
+      <span class="kicker">Part 2 · 视频声音描述</span>
+      <h2 style="margin-top:6px;">逐段观看并描述声音</h2>
+      <p class="sub">共 <span id="p2-total">0</span> 段，每段描述至少 <span id="p2-minword">30</span> 字，需覆盖人声、音效、环境音三类。</p>
+      <div class="msg" id="part2-msg">请补全未完成的描述（每段至少 30 字，并覆盖三类声音）。</div>
+    </div>
+    <div id="p2-list"></div>
+    <div class="center" style="margin-top:22px;">
+      <button class="btn block" id="btn-p2-submit" type="button">完成测试并生成结果</button>
+    </div>
+  </section>
+
+  <!-- ===== 结果 ===== -->
+  <section id="view-result" class="view">
+    <div class="card center">
+      <span class="kicker">测试完成</span>
+      <h2 style="margin-top:6px;">结果摘要</h2>
+      <div class="codebox">
+        <div style="font-size:12px;color:var(--muted);">我的测试码（用于核对身份）</div>
+        <div class="code" id="result-code">------</div>
+      </div>
+      <div class="score-ring" id="final-ring" style="margin-top:22px;">
+        <div class="num" id="final-num">0%</div>
+        <div class="lbl">第一部分得分率</div>
+      </div>
+      <div class="verdict" id="final-verdict"></div>
+      <div class="center" style="margin-top:18px;">
+        <button class="btn block" id="btn-submit-all" type="button">一键提交到汇总表</button>
+      </div>
+      <p class="hint">点击后打开飞书提交表单，姓名、联系方式、邮箱与答卷链接已自动填写，请上传简历并提交。</p>
+    </div>
+    <div id="result-body"></div>
+    <div class="card">
+      <h2>网页版答卷链接</h2>
+      <p class="sub">招聘方点开此链接即可看到排版好的网页版答卷（无需登录、无需后端，含音频与视频）。请复制后连同测试码一起提交到汇总表或发给对接人。</p>
+      <input class="input" id="review-link" readonly style="font-size:12px;margin-top:12px;font-family:monospace;">
+      <div class="linkrow">
+        <button class="btn" id="btn-copy-link" type="button" style="padding:11px 20px;font-size:14px;">复制答卷链接</button>
+        <button class="btn ghost" id="btn-open-link" type="button" style="padding:11px 20px;font-size:14px;">预览网页版答卷</button>
+      </div>
+      <div class="msg ok" id="link-msg">已复制到剪贴板。</div>
+    </div>
+    <div class="card">
+      <h2>复制结果文本</h2>
+      <p class="sub">也可以把下面文本复制后发送给招聘对接人。</p>
+      <textarea class="txtout" id="result-txt" readonly></textarea>
+      <div class="center" style="margin-top:16px;">
+        <button class="btn ghost" id="btn-copy" type="button">复制结果</button>
+      </div>
+      <div class="msg ok" id="copy-msg">已复制到剪贴板。</div>
+    </div>
+    <p class="footer">本测试用于音效标注岗位人力筛选 · 每位候选人题目组合随机生成</p>
+  </section>
+
+  <!-- ===== 网页版答卷查看（招聘方） ===== -->
+  <section id="view-review" class="view">
+    <div class="card">
+      <span class="kicker">招聘方 · 网页版答卷</span>
+      <h2 style="margin-top:6px;">候选人答卷</h2>
+      <div class="rv-top">
+        <div class="rv-codebig"><span>测试码（核对身份）</span><b id="rv-code">------</b></div>
+        <div class="rv-meta">
+          <div>姓名 / 编号：<b id="rv-name">—</b></div>
+          <div>联系方式：<b id="rv-contact">—</b></div>
+          <div>邮箱：<b id="rv-email">—</b></div>
+          <div>完成时间：<span id="rv-ts">—</span></div>
+        </div>
+        <div class="rv-scorebox">
+          <div class="rv-score" id="rv-score">0/0</div>
+          <span class="rv-badge" id="rv-verdict">—</span>
+        </div>
+      </div>
+    </div>
+    <div id="rv-body"></div>
+    <div class="card" id="rv-grade-card">
+      <h2>招聘方人工评定</h2>
+      <p class="sub">在上方 Part 2 为每段视频的声音描述打分（每题 1–10 分，共 20 分），可写简评；打分与评定按测试码自动暂存本机、不会回传候选人链接。</p>
+      <div class="rv-grade-row">
+        <label><input type="radio" name="rvgrade" value="通过"> 通过</label>
+        <label><input type="radio" name="rvgrade" value="待定"> 待定</label>
+        <label><input type="radio" name="rvgrade" value="不通过"> 不通过</label>
+      </div>
+      <textarea class="input" id="rv-note" placeholder="批改备注 / 综合评语（可选，会进入成绩单）" style="min-height:84px;margin-top:14px;"></textarea>
+      <div class="rv-subtotal" id="rv-subtotal">
+        <span>Part 2 视频声音描述：<b id="rt-p2">0</b>/20</span>
+      </div>
+      <textarea class="input rv-report" id="rv-report" readonly placeholder="点下方「生成并复制成绩单」，此处出现成绩单文本——复制后粘贴到飞书表「成绩单」列，即可随通知邮件一并发给候选人。"></textarea>
+      <div class="linkrow">
+        <button class="btn" id="btn-rv-report" type="button" style="padding:11px 20px;font-size:14px;">生成并复制成绩单</button>
+        <button class="btn" id="btn-rv-print" type="button" style="padding:11px 20px;font-size:14px;">打印 / 存为 PDF</button>
+        <button class="btn ghost" id="btn-rv-back" type="button" style="padding:11px 20px;font-size:14px;">返回首页</button>
+      </div>
+      <div class="msg ok" id="rv-report-msg">成绩单已复制，可粘贴到飞书表「成绩单」列。</div>
+    </div>
+    <div id="rv-print-sheet" aria-hidden="true"></div>
+  </section>
+
+</main>
+
+<script>
+/* ============================================================
+ * 第一部分：音效听辨题库（100 题，随机抽 30）
+ * 每题：1 正确项 + 2 个近亲强干扰 + 2 个跨类陪衬；ans 必须与 opts 某项逐字一致
+ * 当前为样例 10 题（AI 生成音效），补齐到 100 题后 PART1_COUNT 自动抽 30
+ * ============================================================ */
+var SFX_BANK = [
+  { url:"https://aka.doubaocdn.com/s/fNHt9QY7ev", q:"这段音频主要是什么声音？", opts:["小雨声", "热油煎炸声", "溪流流水声", "人群嘈杂声", "钢琴声"], ans:"小雨声" },
+  { url:"https://aka.doubaocdn.com/s/zOsloUGc3E", q:"这段音频主要是什么声音？", opts:["海浪声", "狂风呼啸声", "暴雨声", "汽车引擎声", "鼓掌声"], ans:"海浪声" },
+  { url:"https://aka.doubaocdn.com/s/oefKSVkyPt", q:"这段环境音最可能的场景是？", opts:["城市马路车流", "火车站台", "机场大厅", "树林鸟鸣", "安静办公室"], ans:"城市马路车流" },
+  { url:"https://aka.doubaocdn.com/s/b6v92GtFWg", q:"这段环境音最可能来自哪里？", opts:["咖啡馆 / 餐厅人声", "教室早读", "菜市场叫卖", "体育场欢呼", "安静图书馆"], ans:"咖啡馆 / 餐厅人声" },
+  { url:"https://aka.doubaocdn.com/s/UIJRtsyc5E", q:"这段动作音效是什么？", opts:["敲门声", "拍桌子声", "锤钉子声", "跺脚声", "架子鼓声"], ans:"敲门声" },
+  { url:"https://aka.doubaocdn.com/s/Zx68a95gJa", q:"这段音效是什么声音？", opts:["玻璃破碎声", "瓷器摔碎声", "冰块碎裂声", "金属碰撞声", "打雷声"], ans:"玻璃破碎声" },
+  { url:"https://aka.doubaocdn.com/s/RLCWHxG3ns", q:"这段声音最可能是什么？", opts:["手机消息提示音", "门铃声", "闹钟铃声", "汽车鸣笛声", "鸟叫声"], ans:"手机消息提示音" },
+  { url:"https://aka.doubaocdn.com/s/TDQUNBh5rI", q:"这段人声的特征是？", opts:["成年男性", "老年男性", "儿童", "成年女性", "多人合唱"], ans:"成年男性" },
+  { url:"https://aka.doubaocdn.com/s/oAW6FBHA2n", q:"这段人声在做什么？", opts:["笑声", "哭泣", "说话", "唱歌", "咳嗽"], ans:"笑声" },
+  { url:"https://aka.doubaocdn.com/s/u6g5LgkUk6", q:"这段声音最可能是什么？", opts:["热油煎炸声", "小雨声", "电流杂音", "白噪音", "海浪声"], ans:"热油煎炸声" },
+  { url:"https://aka.doubaocdn.com/s/FManjOiVFE", q:"这段声音主要属于哪一类？", opts:["人声", "环境音", "物体音效", "音乐", "静默"], ans:"人声" },
+  { url:"https://aka.doubaocdn.com/s/mGiqLwT6wV", q:"这段声音主要属于哪一类？", opts:["环境音", "人声", "物体音效", "音乐", "电子提示音"], ans:"环境音" },
+  { url:"https://aka.doubaocdn.com/s/nB8CLjuUKH", q:"这段声音主要属于哪一类？", opts:["物体音效", "人声", "环境音", "音乐", "静默"], ans:"物体音效" },
+  { url:"https://aka.doubaocdn.com/s/2IjvwiYRip", q:"这段声音主要属于哪一类？", opts:["音乐", "人声", "环境音", "物体音效", "电子噪音"], ans:"音乐" },
+  { url:"https://aka.doubaocdn.com/s/KdmTFyss4w", q:"这段人声的特征是？", opts:["老年男性", "成年男性", "小男孩", "成年女性", "老年女性"], ans:"老年男性" },
+  { url:"https://aka.doubaocdn.com/s/Jx5hOOv3s3", q:"这段人声的特征是？", opts:["小男孩", "成年男性", "小女孩", "老年男性", "年轻女性"], ans:"小男孩" },
+  { url:"https://aka.doubaocdn.com/s/aJRG2x90ZN", q:"这段人声的特征是？", opts:["小女孩", "成年女性", "小男孩", "老年女性", "少女"], ans:"小女孩" },
+  { url:"https://aka.doubaocdn.com/s/4psuurpRXU", q:"这段人声的情绪是？", opts:["愤怒", "喜悦", "平静", "悲伤", "恐惧"], ans:"愤怒" },
+  { url:"https://aka.doubaocdn.com/s/667W9WEYpM", q:"这段人声在做什么？", opts:["哭泣", "大笑", "说话", "唱歌", "咳嗽"], ans:"哭泣" },
+  { url:"https://aka.doubaocdn.com/s/wSL66VsDVT", q:"这段人声在做什么？", opts:["咳嗽", "笑声", "清嗓子", "打喷嚏", "打嗝"], ans:"咳嗽" },
+  { url:"https://aka.doubaocdn.com/s/J8aGnTwhlV", q:"这段人声在做什么？", opts:["打喷嚏", "咳嗽", "大笑", "叹气", "打哈欠"], ans:"打喷嚏" },
+  { url:"https://aka.doubaocdn.com/s/QbcVEqVCQ8", q:"这段人声在做什么？", opts:["打哈欠", "叹气", "喊叫", "哭泣", "深呼吸"], ans:"打哈欠" },
+  { url:"https://aka.doubaocdn.com/s/KeTjGJjtg3", q:"这段人声的说话方式是？", opts:["耳语小声说", "正常说话", "大声喊叫", "歌唱", "朗读"], ans:"耳语小声说" },
+  { url:"https://aka.doubaocdn.com/s/bFgcW4pnWQ", q:"这段音频里有几个人在说话？", opts:["两个人", "一个人", "三个人", "四个人", "无人声"], ans:"两个人" },
+  { url:"https://aka.doubaocdn.com/s/csSxPvNuM0", q:"这段人声的情况是？", opts:["多人交头接耳交谈", "单人说话", "两人对话", "安静无人", "整齐合唱"], ans:"多人交头接耳交谈" },
+  { url:"https://aka.doubaocdn.com/s/hMoB7c0359", q:"这段人声在做什么？", opts:["哼唱 / 歌唱", "说话", "哭泣", "朗读", "笑声"], ans:"哼唱 / 歌唱" },
+  { url:"https://aka.doubaocdn.com/s/YEXEaQIt9Q", q:"这段人声在做什么？", opts:["叹气", "打哈欠", "咳嗽", "吹气", "呻吟"], ans:"叹气" },
+  { url:"https://aka.doubaocdn.com/s/Ry7lAhM6cW", q:"这段人声在做什么？", opts:["大笑", "哭泣", "喊叫", "鼓掌", "咳嗽"], ans:"大笑" },
+  { url:"https://aka.doubaocdn.com/s/ediMTkrvRC", q:"这段声音最可能是什么？", opts:["打鼾声", "引擎怠速", "人说话", "打雷声", "电流声"], ans:"打鼾声" },
+  { url:"https://aka.doubaocdn.com/s/4K5SwaUaiQ", q:"这段人声在做什么？", opts:["清嗓子", "咳嗽", "吞咽", "打嗝", "漱口"], ans:"清嗓子" },
+  { url:"https://aka.doubaocdn.com/s/HOXDxPkZ19", q:"这段音频主要是什么声音？", opts:["大雨倾盆", "小雨淅沥", "瀑布流水", "车流声", "煎炸声"], ans:"大雨倾盆" },
+  { url:"https://aka.doubaocdn.com/s/gLVw2Q5YVM", q:"这段音频主要是什么声音？", opts:["打雷下雨", "狂风呼啸", "飞机轰鸣", "车流声", "爆炸声"], ans:"打雷下雨" },
+  { url:"https://aka.doubaocdn.com/s/nWwuTSnSVl", q:"这段音频主要是什么声音？", opts:["微风吹树叶", "狂风呼啸", "流水声", "人群声", "电流声"], ans:"微风吹树叶" },
+  { url:"https://aka.doubaocdn.com/s/xeS0ciPc9G", q:"这段音频主要是什么声音？", opts:["狂风呼啸", "人群呐喊", "海浪声", "发动机声", "人呼气声"], ans:"狂风呼啸" },
+  { url:"https://aka.doubaocdn.com/s/l3TLMCcSxV", q:"这段音频主要是什么声音？", opts:["溪流流水", "下雨声", "煎炸声", "撕纸声", "鼓掌声"], ans:"溪流流水" },
+  { url:"https://aka.doubaocdn.com/s/VAsvZsbPJP", q:"这段音频主要是什么声音？", opts:["瀑布轰鸣", "狂风呼啸", "车流声", "人群嘈杂", "机器运转"], ans:"瀑布轰鸣" },
+  { url:"https://aka.doubaocdn.com/s/ezAQEiK4YA", q:"这段音频主要是什么声音？", opts:["篝火燃烧", "热油煎炸", "下小雨", "鼓掌声", "碎纸声"], ans:"篝火燃烧" },
+  { url:"https://aka.doubaocdn.com/s/KnXY5gVa3O", q:"这段音频主要是什么声音？", opts:["小鸟鸣叫", "手机提示音", "老鼠叫声", "人吹口哨", "电子音"], ans:"小鸟鸣叫" },
+  { url:"https://aka.doubaocdn.com/s/PhCOTVdhaf", q:"这段音频主要是什么声音？", opts:["海鸥叫声", "猫叫声", "婴儿哭声", "警报声", "笑声"], ans:"海鸥叫声" },
+  { url:"https://aka.doubaocdn.com/s/ZBTlPGOliK", q:"这段音频主要是什么声音？", opts:["蟋蟀虫鸣", "电流嗡嗡", "耳鸣声", "电话忙音", "蜂鸣器"], ans:"蟋蟀虫鸣" },
+  { url:"https://aka.doubaocdn.com/s/qwFTHsJQX9", q:"这段音频主要是什么声音？", opts:["青蛙蛙鸣", "小鸟叫", "鸭子叫", "人笑声", "水滴声"], ans:"青蛙蛙鸣" },
+  { url:"https://aka.doubaocdn.com/s/q4VwMZAV4r", q:"这段音频主要是什么声音？", opts:["狗叫声", "狼嚎声", "人咳嗽", "警报声", "喇叭声"], ans:"狗叫声" },
+  { url:"https://aka.doubaocdn.com/s/wVJamGlvzn", q:"这段音频主要是什么声音？", opts:["猫叫声", "婴儿哭声", "海鸥叫", "门轴吱呀", "小提琴声"], ans:"猫叫声" },
+  { url:"https://aka.doubaocdn.com/s/IHcIv80x2q", q:"这段音频主要是什么声音？", opts:["水滴声", "脚步声", "敲门声", "钟表声", "打字声"], ans:"水滴声" },
+  { url:"https://aka.doubaocdn.com/s/lxl5WZg5wQ", q:"这段环境音最可能的场景是？", opts:["地铁进站", "马路上车流", "雷雨天", "工厂车间", "海边"], ans:"地铁进站" },
+  { url:"https://aka.doubaocdn.com/s/1CGLrQ0Fri", q:"这段环境音最可能的场景是？", opts:["机场大厅", "火车站台", "商场里", "教堂内", "办公室"], ans:"机场大厅" },
+  { url:"https://aka.doubaocdn.com/s/Mu2B7QJ2RK", q:"这段环境音最可能的场景是？", opts:["开放式办公室", "咖啡馆", "教室", "图书馆", "机房"], ans:"开放式办公室" },
+  { url:"https://aka.doubaocdn.com/s/iZkE5WzwZP", q:"这段环境音最可能的场景是？", opts:["教室齐读", "咖啡馆嘈杂", "体育场", "菜市场", "合唱排练"], ans:"教室齐读" },
+  { url:"https://aka.doubaocdn.com/s/WO4YJLF8Rd", q:"这段环境音最可能的场景是？", opts:["菜市场", "体育场", "火车站", "餐厅后厨", "城市公园"], ans:"菜市场" },
+  { url:"https://aka.doubaocdn.com/s/LiYICqBjc8", q:"这段环境音最可能的场景是？", opts:["体育场欢呼", "菜市场", "海浪声", "雷雨声", "零星掌声"], ans:"体育场欢呼" },
+  { url:"https://aka.doubaocdn.com/s/euUOxXg4k6", q:"这段环境音最可能的场景是？", opts:["餐厅后厨", "办公室", "工厂车间", "便利店", "地铁里"], ans:"餐厅后厨" },
+  { url:"https://aka.doubaocdn.com/s/4uRoogt7wu", q:"这段声音的空间感是？", opts:["空旷大厅强混响", "狭小房间干声", "室外开阔地", "电梯内部", "电话听筒里"], ans:"空旷大厅强混响" },
+  { url:"https://aka.doubaocdn.com/s/ye6PB5zE25", q:"这段环境音最可能的场景是？", opts:["电梯里", "地铁车厢", "办公室", "厨房", "走廊"], ans:"电梯里" },
+  { url:"https://aka.doubaocdn.com/s/nm6wBzNK7z", q:"这段环境音最可能的场景是？", opts:["火车站台", "机场大厅", "公交站台", "码头", "商场"], ans:"火车站台" },
+  { url:"https://aka.doubaocdn.com/s/Gte6GPyVaV", q:"这段环境音最可能的场景是？", opts:["城市公园", "菜市场", "办公室", "地铁站", "餐厅"], ans:"城市公园" },
+  { url:"https://aka.doubaocdn.com/s/aDgGLFl5hX", q:"这段环境音最可能的场景是？", opts:["商场超市", "安静咖啡馆", "办公室", "教室", "健身房"], ans:"商场超市" },
+  { url:"https://aka.doubaocdn.com/s/Zhl8I0nIaH", q:"这段环境音最可能的场景是？", opts:["下雨的车内", "室外淋雨", "淋浴间", "水龙头下", "瀑布边"], ans:"下雨的车内" },
+  { url:"https://aka.doubaocdn.com/s/Rgx26PLJYE", q:"这段动作音效是什么？", opts:["皮鞋走硬地", "拍手声", "敲门声", "键盘打字", "雨滴声"], ans:"皮鞋走硬地" },
+  { url:"https://aka.doubaocdn.com/s/4ssKqijcE2", q:"这段动作音效是什么？", opts:["运动鞋跑步", "皮鞋走路", "动物奔跑", "拍手声", "扫地声"], ans:"运动鞋跑步" },
+  { url:"https://aka.doubaocdn.com/s/vEs9LQz8Cd", q:"这段动作音效是什么？", opts:["踩雪脚步", "踩碎玻璃", "揉纸团", "咀嚼声", "踩落叶"], ans:"踩雪脚步" },
+  { url:"https://aka.doubaocdn.com/s/VLVQn8HzUo", q:"这段动作音效是什么？", opts:["木地板吱呀", "开门声", "椅子摇晃", "弹簧声", "老鼠声"], ans:"木地板吱呀" },
+  { url:"https://aka.doubaocdn.com/s/otiOTq7bVX", q:"这段动作音效是什么？", opts:["上楼梯脚步", "平路走路", "敲鼓声", "拍门声", "原地跑步"], ans:"上楼梯脚步" },
+  { url:"https://aka.doubaocdn.com/s/rcS59jbhmK", q:"这段动作音效是什么？", opts:["木门开关", "车门开关", "拉抽屉", "开关柜门", "电梯门"], ans:"木门开关" },
+  { url:"https://aka.doubaocdn.com/s/GUVikSvlDJ", q:"这段动作音效是什么？", opts:["关车门", "关木门", "关抽屉", "拍手声", "捶打声"], ans:"关车门" },
+  { url:"https://aka.doubaocdn.com/s/KzUmI7ZXZH", q:"这段动作音效是什么？", opts:["翻书页", "洗牌", "撕纸", "落叶声", "数钞票"], ans:"翻书页" },
+  { url:"https://aka.doubaocdn.com/s/FznWlSs6zn", q:"这段动作音效是什么？", opts:["键盘打字", "下小雨", "马蹄声", "炒豆子", "鼓掌声"], ans:"键盘打字" },
+  { url:"https://aka.doubaocdn.com/s/88SRfduRCL", q:"这段动作音效是什么？", opts:["鼠标点击", "相机快门", "敲门声", "按圆珠笔", "水滴声"], ans:"鼠标点击" },
+  { url:"https://aka.doubaocdn.com/s/UAwWzbLoZi", q:"这段动作音效是什么？", opts:["往杯里倒水", "溪流流水", "下小雨", "水烧开沸腾", "淋浴声"], ans:"往杯里倒水" },
+  { url:"https://aka.doubaocdn.com/s/EHeF8heUcC", q:"这段动作音效是什么？", opts:["水沸腾", "热油煎炒", "可乐冒泡", "下小雨", "溪流声"], ans:"水沸腾" },
+  { url:"https://aka.doubaocdn.com/s/INOW2KUrRV", q:"这段动作音效是什么？", opts:["刀切砧板", "马蹄声", "敲门声", "键盘打字", "捶打声"], ans:"刀切砧板" },
+  { url:"https://aka.doubaocdn.com/s/mLA9Qpxrr1", q:"这段动作音效是什么？", opts:["开易拉罐", "开瓶盖", "拔瓶塞", "漏气声", "蛇吐信"], ans:"开易拉罐" },
+  { url:"https://aka.doubaocdn.com/s/fHGNMMFWQg", q:"这段动作音效是什么？", opts:["撕纸", "撕布", "碎玻璃声", "踩落叶声", "拉拉链"], ans:"撕纸" },
+  { url:"https://aka.doubaocdn.com/s/Zd7lKlUQ5R", q:"这段动作音效是什么？", opts:["拉拉链", "撕纸声", "锯东西", "摩擦声", "蛇嘶声"], ans:"拉拉链" },
+  { url:"https://aka.doubaocdn.com/s/sww2bGlfKm", q:"这段动作音效是什么？", opts:["钥匙开锁", "敲门声", "摇钥匙串", "打字声", "齿轮转动"], ans:"钥匙开锁" },
+  { url:"https://aka.doubaocdn.com/s/VkkXjEpX0h", q:"这段动作音效是什么？", opts:["拖动椅子", "关门声", "打雷声", "脚步声", "刹车声"], ans:"拖动椅子" },
+  { url:"https://aka.doubaocdn.com/s/YKNtYJf2W4", q:"这段声音最可能是什么？", opts:["吸尘器工作", "吹风机", "汽车引擎", "刮风声", "空调外机"], ans:"吸尘器工作" },
+  { url:"https://aka.doubaocdn.com/s/Nt1qZDWttJ", q:"这段声音最可能是什么？", opts:["钟表滴答", "水滴声", "打字声", "脚步声", "敲击声"], ans:"钟表滴答" },
+  { url:"https://aka.doubaocdn.com/s/bSiPaJd0eU", q:"这段声音最可能是什么？", opts:["闹钟铃响", "门铃声", "电话铃声", "警笛声", "手机提示"], ans:"闹钟铃响" },
+  { url:"https://aka.doubaocdn.com/s/s6fJDZtQhL", q:"这段声音最可能是什么？", opts:["门铃声", "闹钟声", "电话铃", "手机提示", "钢琴音"], ans:"门铃声" },
+  { url:"https://aka.doubaocdn.com/s/zdaHR8LTXr", q:"这段声音最可能是什么？", opts:["电话铃声", "门铃声", "闹钟声", "警笛声", "鸟叫声"], ans:"电话铃声" },
+  { url:"https://aka.doubaocdn.com/s/I4sUPMO0qh", q:"这段声音最可能是什么？", opts:["汽车喇叭", "警笛", "轮船汽笛", "自行车铃", "人喊叫"], ans:"汽车喇叭" },
+  { url:"https://aka.doubaocdn.com/s/9Atn24S1I0", q:"这段声音最可能是什么？", opts:["引擎怠速", "人打鼾", "打雷声", "空调声", "刮风声"], ans:"引擎怠速" },
+  { url:"https://aka.doubaocdn.com/s/olkDBL8XVK", q:"这段声音最可能是什么？", opts:["急刹车", "人尖叫", "刮风声", "刹车铃", "动物嘶叫"], ans:"急刹车" },
+  { url:"https://aka.doubaocdn.com/s/VtEKCbSrUP", q:"这段声音最可能是什么？", opts:["相机快门", "鼠标点击", "按键声", "拍手声", "开关声"], ans:"相机快门" },
+  { url:"https://aka.doubaocdn.com/s/o67YUSvc40", q:"这段声音最可能是什么？", opts:["电流嗡嗡", "蟋蟀虫鸣", "耳鸣声", "冰箱启动", "蜂鸣器"], ans:"电流嗡嗡" },
+  { url:"https://aka.doubaocdn.com/s/GNMcVV7EUU", q:"这段声音最可能是什么？", opts:["警笛警报", "汽车喇叭", "闹钟声", "鸟叫声", "人哭喊"], ans:"警笛警报" },
+  { url:"https://aka.doubaocdn.com/s/HYGDvUJOTR", q:"这段声音最可能是什么？", opts:["微波炉提示叮", "手机提示", "门铃声", "钢琴键", "水滴声"], ans:"微波炉提示叮" },
+  { url:"https://aka.doubaocdn.com/s/CCBvhs0Hma", q:"这段声音最可能是什么？", opts:["风扇转动", "吸尘器", "刮大风", "引擎声", "流水声"], ans:"风扇转动" },
+  { url:"https://aka.doubaocdn.com/s/qmVEE3Rhhs", q:"这段声音最可能是什么？", opts:["打印机工作", "键盘打字", "缝纫机", "下小雨", "齿轮声"], ans:"打印机工作" },
+  { url:"https://aka.doubaocdn.com/s/VsOOVDrn42", q:"这段声音最可能是什么？", opts:["扫码提示音", "手机提示", "鼠标点击", "电子琴音", "蜂鸣器长鸣"], ans:"扫码提示音" },
+  { url:"https://aka.doubaocdn.com/s/V70HJ2jcx0", q:"这段声音最可能是什么？", opts:["自行车铃", "门铃声", "电话铃", "闹钟声", "敲玻璃"], ans:"自行车铃" },
+  { url:"https://aka.doubaocdn.com/s/3GnZKgjR1U", q:"这段声音的距离感是？", opts:["离得很远", "贴耳很近", "就在头顶", "在耳朵里", "无法判断"], ans:"离得很远" },
+  { url:"https://aka.doubaocdn.com/s/caLj2oyBaB", q:"这段声音发生了什么变化？", opts:["由远变近渐强", "由近变远渐弱", "一直不变", "忽大忽小", "突然停止"], ans:"由远变近渐强" },
+  { url:"https://aka.doubaocdn.com/s/BtPWf6HCKv", q:"这段人声的空间感是？", opts:["非常贴近的干声", "空旷远处", "电话听筒里", "隔着一扇门", "有回声的大厅"], ans:"非常贴近的干声" },
+  { url:"https://aka.doubaocdn.com/s/76WyOWeqYT", q:"这段声音的整体音量是？", opts:["很轻", "很响", "中等", "逐渐增强", "完全静音"], ans:"很轻" },
+  { url:"https://aka.doubaocdn.com/s/yYK3z0mH2d", q:"这段人声的音调是？", opts:["低沉", "高亢", "尖细", "中等", "没有音调"], ans:"低沉" },
+  { url:"https://aka.doubaocdn.com/s/Nx9V8aOdr3", q:"这段动作音效是什么？", opts:["拍手声", "皮鞋脚步", "拍桌子", "甩鞭子", "下小雨"], ans:"拍手声" },
+  { url:"https://aka.doubaocdn.com/s/5WQ3lXqVn7", q:"这段音效是什么声音？", opts:["瓷器摔碎", "玻璃破碎", "金属掉落", "冰块碎裂", "打雷声"], ans:"瓷器摔碎" },
+  { url:"https://aka.doubaocdn.com/s/VeEm56V2GY", q:"这段声音最可能是什么？", opts:["人呼气吹气", "刮大风", "海浪声", "排气声", "蛇嘶声"], ans:"人呼气吹气" },
+  { url:"https://aka.doubaocdn.com/s/Wa9xkITSnH", q:"这段音效是什么声音？", opts:["金属碰撞掉落", "玻璃破碎", "敲门声", "木头敲击", "碎石滚落"], ans:"金属碰撞掉落" }
+];
+
+/* ============================================================
+ * 第二部分：视频库（随机抽 2）。url 待接入真实视频直链（MP4，可被 <video> 直接播放）
+ * ============================================================ */
+var VIDEOS = [
+  { title:"视频一（约 28 秒 · 横屏）", url:"assets/v1.mp4" },
+  { title:"视频二（约 17 秒 · 竖屏）", url:"assets/v2.mp4" }
+];
+
+/* ============================================================
+ * 配置
+ * ============================================================ */
+var PASS_RATE = 0.7;     // 第一部分通过线
+var PART1_COUNT = 30;    // 从题库随机抽 30（题量不足时自动全取）
+var PART2_COUNT = 2;     // 随机抽 2 段视频
+var P2_MIN = 30;         // 第二部分每题最少字数
+var FORM_URL = "https://g0iocpiqvf9.feishu.cn/share/base/shrcnPYmBBXOxSAvsoEX7HL8XMc";
+
+/* ============================================================
+ * 状态与工具
+ * ============================================================ */
+var state = { name:"", contact:"", email:"", code:"", p1:[], p1Sel:{}, p1Score:0, p1Rate:0, p2:[], p2Text:{} };
+
+function shuffle(arr){ var a=arr.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
+function sample(arr,n){ return shuffle(arr).slice(0,Math.min(n,arr.length)); }
+function show(id){
+  var vs=document.querySelectorAll(".view");
+  for(var i=0;i<vs.length;i++) vs[i].classList.remove("active");
+  document.getElementById(id).classList.add("active");
+  window.scrollTo({top:0});
+}
+function msg(id,on){ document.getElementById(id).classList.toggle("show",!!on); }
+function genCode(){ var c="ABCDEFGHJKMNPQRSTUVWXYZ23456789",s=""; for(var i=0;i<5;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
+function fmt(t){ if(!isFinite(t)) return "0:00"; var m=Math.floor(t/60),s=Math.floor(t%60); return m+":"+(s<10?"0":"")+s; }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+var DONE_KEY="sfx_done_test";
+function isDone(name){ try{ var m=JSON.parse(localStorage.getItem(DONE_KEY)||"{}"); return !!m[name]; }catch(e){ return false; } }
+function markDone(name){ try{ var m=JSON.parse(localStorage.getItem(DONE_KEY)||"{}"); m[name]=1; localStorage.setItem(DONE_KEY,JSON.stringify(m)); }catch(e){} }
+function prefillUrl(obj){
+  var parts=[];
+  for(var k in obj){ parts.push("prefill_"+encodeURIComponent(k)+"="+encodeURIComponent(obj[k])); }
+  return FORM_URL+(parts.length?"?"+parts.join("&"):"");
+}
+
+/* ============================================================
+ * 播放器（音频 + 视频），同一时间只播放一个媒体
+ * ============================================================ */
+var activeMedia=null;
+function createPlayer(url,label){
+  var wrap=document.createElement("div"); wrap.className="player";
+  var audio=document.createElement("audio"); audio.src=url; audio.preload="metadata"; audio.referrerPolicy="no-referrer";
+  var btn=document.createElement("button"); btn.type="button"; btn.className="play-btn"; btn.setAttribute("aria-label","播放");
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  var eq=document.createElement("div"); eq.className="eq"; for(var i=0;i<5;i++) eq.appendChild(document.createElement("span"));
+  var meta=document.createElement("div"); meta.className="pmeta";
+  var pl=document.createElement("div"); pl.className="plabel"; pl.textContent=label||"试听";
+  var prog=document.createElement("div"); prog.className="prog"; var fill=document.createElement("div"); fill.className="prog-fill"; prog.appendChild(fill);
+  var pt=document.createElement("div"); pt.className="ptime"; pt.textContent="0:00 / 0:00";
+  meta.appendChild(pl); meta.appendChild(prog); meta.appendChild(pt);
+  wrap.appendChild(btn); wrap.appendChild(eq); wrap.appendChild(meta);
+  function setP(on){ wrap.classList.toggle("playing",on); btn.innerHTML=on?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'; }
+  audio.addEventListener("timeupdate",function(){ fill.style.width=(audio.currentTime/audio.duration*100)+"%"; pt.textContent=fmt(audio.currentTime)+" / "+fmt(audio.duration); });
+  audio.addEventListener("loadedmetadata",function(){ pt.textContent="0:00 / "+fmt(audio.duration); });
+  audio.addEventListener("play",function(){ if(activeMedia&&activeMedia!==audio){try{activeMedia.pause();}catch(e){}} activeMedia=audio; setP(true); });
+  audio.addEventListener("pause",function(){ setP(false); });
+  audio.addEventListener("ended",function(){ setP(false); fill.style.width="100%"; });
+  function seekAt(clientX){
+    var r=prog.getBoundingClientRect(); if(!r.width||!(isFinite(audio.duration)&&audio.duration>0)) return;
+    var ratio=Math.max(0,Math.min(1,(clientX-r.left)/r.width));
+    try{ audio.currentTime=ratio*audio.duration; }catch(e){}
+    fill.style.width=(ratio*100)+"%"; pt.textContent=fmt(ratio*audio.duration)+" / "+fmt(audio.duration);
+  }
+  var seeking=false;
+  prog.style.cursor="pointer"; prog.setAttribute("title","点击或拖动可快进 / 后退");
+  prog.addEventListener("pointerdown",function(e){ seeking=true; try{prog.setPointerCapture(e.pointerId);}catch(x){} seekAt(e.clientX); });
+  prog.addEventListener("pointermove",function(e){ if(seeking) seekAt(e.clientX); });
+  prog.addEventListener("pointerup",function(){ seeking=false; });
+  prog.addEventListener("pointercancel",function(){ seeking=false; });
+  btn.addEventListener("click",function(){
+    if(audio.paused){ audio.play().catch(function(){}); } else audio.pause();
+  });
+  return { el:wrap, audio:audio };
+}
+function createVideoPlayer(url,label){
+  var wrap=document.createElement("div"); wrap.className="vplayer";
+  var cap=document.createElement("div"); cap.className="plabel"; cap.textContent=label||"视频"; wrap.appendChild(cap);
+  var video=null;
+  if(url){
+    video=document.createElement("video");
+    video.src=url; video.controls=true; video.preload="metadata"; video.playsInline=true; video.referrerPolicy="no-referrer";
+    video.className="vvideo";
+    video.addEventListener("play",function(){ if(activeMedia&&activeMedia!==video){try{activeMedia.pause();}catch(e){}} activeMedia=video; });
+    wrap.appendChild(video);
+  }else{
+    var ph=document.createElement("div"); ph.className="vph"; ph.textContent="视频素材待招聘方接入（正式测试此处为可播放视频，请先阅读下方描述要求）";
+    wrap.appendChild(ph);
+  }
+  return { el:wrap, video:video };
+}
+
+/* ============================================================
+ * Part 1
+ * ============================================================ */
+var OPTKEYS=["A","B","C","D","E","F"];
+function renderPart1(){
+  var list=document.getElementById("p1-list"); list.innerHTML="";
+  document.getElementById("p1-total").textContent=state.p1.length;
+  state.p1.forEach(function(q,qi){
+    var card=document.createElement("div"); card.className="q-card";
+    var head=document.createElement("div"); head.className="q-head";
+    var idx=document.createElement("div"); idx.className="q-index"; idx.textContent=qi+1;
+    var title=document.createElement("div"); title.className="q-title"; title.textContent=q.q;
+    head.appendChild(idx); head.appendChild(title); card.appendChild(head);
+    card.appendChild(createPlayer(q.url,"第 "+(qi+1)+" 段声音").el);
+    q.shuffled.forEach(function(opt,oi){
+      var b=document.createElement("button"); b.type="button"; b.className="opt";
+      b.innerHTML='<span class="optkey">'+OPTKEYS[oi]+'</span>'+esc(opt);
+      b.addEventListener("click",function(){
+        var all=card.querySelectorAll(".opt"); for(var k=0;k<all.length;k++) all[k].classList.remove("sel");
+        b.classList.add("sel"); state.p1Sel[qi]=oi;
+      });
+      card.appendChild(b);
+    });
+    list.appendChild(card);
+  });
+}
+function submitPart1(){
+  if(Object.keys(state.p1Sel).length<state.p1.length){ msg("part1-msg",true); return; }
+  msg("part1-msg",false);
+  var correct=0;
+  state.p1.forEach(function(q,qi){ if(state.p1Sel[qi]===q.correctIdx) correct++; });
+  state.p1Score=correct; state.p1Rate=correct/state.p1.length;
+  showPart1Result();
+}
+function showPart1Result(){
+  var total=state.p1.length, correct=state.p1Score;
+  document.getElementById("p1-num").textContent=correct+"/"+total;
+  var ring=document.getElementById("p1-ring"); var pass=state.p1Rate>=PASS_RATE;
+  ring.classList.toggle("pass",pass); ring.classList.toggle("fail",!pass);
+  var v=document.getElementById("p1-verdict"), sub=document.getElementById("p1-verdict-sub");
+  if(pass){ v.textContent="通过听辨硬门槛"; v.className="verdict pass"; sub.innerHTML="得分率 "+Math.round(state.p1Rate*100)+"% ≥ 通过线 "+Math.round(PASS_RATE*100)+"%。请继续完成第二部分：视频声音描述。"; }
+  else{ v.textContent="未通过听辨硬门槛"; v.className="verdict fail"; sub.innerHTML="得分率 "+Math.round(state.p1Rate*100)+"% 低于通过线 "+Math.round(PASS_RATE*100)+"%。本次筛选到此结束，感谢参与。"; }
+  var body=document.getElementById("p1-result-body"); body.innerHTML="";
+  state.p1.forEach(function(q,qi){
+    var ok=state.p1Sel[qi]===q.correctIdx;
+    var item=document.createElement("div"); item.className="result-item";
+    var h=document.createElement("h3"); h.textContent=(qi+1)+". "+(ok?"回答正确":"回答有误");
+    var t=document.createElement("div"); t.className="rtxt"; t.textContent=q.q;
+    var m=document.createElement("div"); m.className="rmeta"; m.textContent="你的答案："+q.shuffled[state.p1Sel[qi]];
+    item.appendChild(h); item.appendChild(t); item.appendChild(m); body.appendChild(item);
+  });
+  var wrap=document.getElementById("p1-next-wrap"); wrap.innerHTML="";
+  if(pass){
+    var b=document.createElement("button"); b.type="button"; b.className="btn block"; b.textContent="进入第二部分 · 视频声音描述";
+    b.addEventListener("click",function(){ document.getElementById("p2-count").textContent=state.p2.length; show("view-part2intro"); }); wrap.appendChild(b);
+  }else{
+    var r=document.createElement("button"); r.type="button"; r.className="btn ghost block"; r.textContent="重新测试（重新抽题）";
+    r.addEventListener("click",function(){ startTest(); }); wrap.appendChild(r);
+  }
+  show("view-part1result");
+}
+
+/* ============================================================
+ * Part 2 · 视频声音描述
+ * ============================================================ */
+var P2_PLACEHOLDER="请按三类描述这段视频里的声音：\n① 人声：有无 / 人数 / 性别年龄 / 情绪 / 说话·喊叫·哭笑·歌唱；\n② 音效：动作声与物体声（脚步、开关门、碰撞、操作等），逐一列出；\n③ 环境音：室内/室外、自然/城市、背景底噪、远近与混响；\n可按声音出现的先后顺序写。";
+function renderPart2(){
+  var list=document.getElementById("p2-list"); list.innerHTML="";
+  document.getElementById("p2-total").textContent=state.p2.length;
+  document.getElementById("p2-count").textContent=state.p2.length;
+  document.getElementById("p2-minword").textContent=P2_MIN;
+  state.p2.forEach(function(vd,vi){
+    var card=document.createElement("div"); card.className="q-card";
+    var head=document.createElement("div"); head.className="q-head";
+    var idx=document.createElement("div"); idx.className="q-index"; idx.textContent=vi+1;
+    var title=document.createElement("div"); title.className="q-title"; title.textContent=vd.title+" · 观看后描述声音";
+    head.appendChild(idx); head.appendChild(title); card.appendChild(head);
+    var note=document.createElement("p"); note.className="p2note"; note.textContent="完整观看视频，按「人声 / 音效 / 环境音」三类拆解描述，至少 "+P2_MIN+" 字。";
+    card.appendChild(note);
+    card.appendChild(createVideoPlayer(vd.url,"视频 "+(vi+1)+"（进度条可拖动、可反复观看）").el);
+    var ta=document.createElement("textarea"); ta.className="input"; ta.placeholder=P2_PLACEHOLDER;
+    ta.value=state.p2Text[vi]||"";
+    ta.addEventListener("input",function(){ state.p2Text[vi]=ta.value; });
+    card.appendChild(ta);
+    list.appendChild(card);
+  });
+}
+function submitPart2(){
+  var missing=[];
+  state.p2.forEach(function(vd,vi){ var t=(state.p2Text[vi]||"").trim(); if(t.length<P2_MIN) missing.push(vi+1); });
+  if(missing.length){ msg("part2-msg",true); return; }
+  msg("part2-msg",false);
+  showResult();
+}
+
+/* ============================================================
+ * 网页版答卷（自包含链接：数据编码进 URL hash，零后端）
+ * ============================================================ */
+function encObj(o){
+  var b64=btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+  return b64.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function decObj(s){
+  s=String(s).replace(/-/g,"+").replace(/_/g,"/");
+  while(s.length%4) s+="=";
+  return JSON.parse(decodeURIComponent(escape(atob(s))));
+}
+function buildReview(){
+  return {
+    v:1, code:state.code, name:state.name, contact:state.contact, email:state.email,
+    ts:new Date().toLocaleString("zh-CN",{hour12:false}),
+    p1score:state.p1Score, p1total:state.p1.length, p1rate:state.p1Rate,
+    p1:state.p1.map(function(q,qi){ return { q:q.q, url:q.url, opts:q.shuffled, pick:state.p1Sel[qi], correct:q.correctIdx }; }),
+    p2:state.p2.map(function(vd,vi){ return { title:vd.title, url:vd.url||"", ans:state.p2Text[vi]||"" }; })
+  };
+}
+function reviewUrl(o){ return location.origin+location.pathname+"#r="+encObj(o); }
+
+/* ===== 招聘方人工打分：Part2 每段视频 1-10，按测试码本机暂存 ===== */
+var curReview=null, rvDraft={p2:{},g:"",note:""};
+function draftKey(){ return curReview?("sfxdraft:"+(curReview.code||"nocode")):null; }
+function loadDraft(){
+  rvDraft={p2:{},g:"",note:""};
+  var k=draftKey(); if(!k) return;
+  try{ var s=JSON.parse(localStorage.getItem(k)||"null"); if(s){ rvDraft=Object.assign(rvDraft,s); rvDraft.p2=rvDraft.p2||{}; } }catch(e){}
+}
+function saveDraft(){
+  var k=draftKey(); if(!k) return;
+  rvDraft.g=gradeVal(); rvDraft.note=(document.getElementById("rv-note")||{value:""}).value||"";
+  try{ localStorage.setItem(k,JSON.stringify(rvDraft)); }catch(e){}
+  renderPrintSheet();
+}
+function getR(i){ return rvDraft.p2[i]||{s:0,n:""}; }
+function sumRate(){ var s=0; Object.keys(rvDraft.p2).forEach(function(k){ s+=Number(rvDraft.p2[k].s)||0; }); return s; }
+function gradeVal(){ var g=document.querySelector('input[name="rvgrade"]:checked'); return g?g.value:""; }
+function refreshSubtotal(){
+  var p2=sumRate();
+  var el=document.getElementById("rt-p2"); if(el) el.textContent=p2;
+  renderPrintSheet();
+}
+function makeRater(idx,max){
+  var wrap=document.createElement("div"); wrap.className="rv-rate";
+  var lab=document.createElement("span"); lab.className="rt-label"; lab.textContent="打分"; wrap.appendChild(lab);
+  var cur=getR(idx).s||0, chips=[];
+  for(var v=1;v<=max;v++){
+    (function(v){
+      var c=document.createElement("span"); c.className="rt-chip"+(v<=cur?" on":""); c.textContent=v;
+      c.addEventListener("click",function(){
+        if(!rvDraft.p2[idx]) rvDraft.p2[idx]={s:0,n:""};
+        rvDraft.p2[idx].s=(rvDraft.p2[idx].s===v?0:v);
+        var now=rvDraft.p2[idx].s;
+        chips.forEach(function(ch,ci){ ch.classList.toggle("on",(ci+1)<=now); });
+        saveDraft(); refreshSubtotal();
+      });
+      chips.push(c); wrap.appendChild(c);
+    })(v);
+  }
+  var mx=document.createElement("span"); mx.className="rt-max"; mx.textContent="/"+max+" 分"; wrap.appendChild(mx);
+  var ni=document.createElement("input"); ni.className="rv-note-in"; ni.type="text"; ni.maxLength=80; ni.placeholder="该段简评（可选，会进成绩单）";
+  ni.value=getR(idx).n||"";
+  ni.addEventListener("input",function(){
+    if(!rvDraft.p2[idx]) rvDraft.p2[idx]={s:0,n:""};
+    rvDraft.p2[idx].n=ni.value.trim(); saveDraft();
+  });
+  wrap.appendChild(ni);
+  return wrap;
+}
+function buildReportText(){
+  var d=curReview; if(!d) return "";
+  var L=[];
+  L.push("【音效标注人力能力筛选 · 成绩单】");
+  L.push("姓名："+(d.name||"—")+"　测试码："+(d.code||"—"));
+  var pct=Math.round((d.p1rate||0)*100), pass1=(d.p1rate||0)>=PASS_RATE;
+  L.push("第一部分 · 听辨硬门槛："+(d.p1score||0)+"/"+(d.p1total||0)+"（"+pct+"%）· "+(pass1?"通过":"未通过"));
+  var p2=sumRate();
+  L.push("第二部分 · 视频声音描述："+p2+"/20");
+  (d.p2||[]).forEach(function(it,i){ var r=getR(i); L.push("  "+(i+1)+". "+(it.title||("视频"+(i+1)))+" — "+r.s+"/10"+(r.n?"："+r.n:"")); });
+  L.push("主观题合计（Part2）："+p2+"/20");
+  L.push("综合评定："+(gradeVal()||"（未评定）"));
+  var note=(document.getElementById("rv-note").value||"").trim();
+  if(note) L.push("综合评语："+note);
+  return L.join("\n");
+}
+function psEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function renderPrintSheet(){
+  var box=document.getElementById("rv-print-sheet"); if(!box||!curReview) return;
+  var d=curReview, pct=Math.round((d.p1rate||0)*100), pass1=(d.p1rate||0)>=PASS_RATE, h=[];
+  h.push('<div class="ps-title">音效标注人力能力筛选 · 成绩单</div>');
+  h.push('<div class="ps-sub">SOUND SCREENING · 声音听辨硬门槛 · 每人随机抽题</div>');
+  h.push('<div class="ps-head"><b>姓名 / 编号：</b>'+psEsc(d.name)+'　<b>测试码：</b>'+psEsc(d.code)
+    +'<br><b>联系方式：</b>'+psEsc(d.contact||"—")+'　<b>邮箱：</b>'+psEsc(d.email||"—")
+    +'<br><b>完成时间：</b>'+psEsc(d.ts||"—")+'</div>');
+  h.push('<div class="ps-sec">第一部分 · 听辨硬门槛</div>');
+  h.push('<div class="ps-row">'+(d.p1score||0)+'/'+(d.p1total||0)+'（'+pct+'%）· '+(pass1?'<b>通过门槛</b>':'<b>未通过门槛</b>')+'</div>');
+  var p2=sumRate();
+  h.push('<div class="ps-sec">第二部分 · 视频声音描述　得分 '+p2+' / 20</div>');
+  (d.p2||[]).forEach(function(it,i){ var r=getR(i);
+    h.push('<div class="ps-row">'+(i+1)+'. '+psEsc(it.title||("视频"+(i+1)))+' — <b>'+r.s+'/10</b>'+(r.n?'　简评：'+psEsc(r.n):'')
+      +'<br><span class="ps-ans">候选人描述：'+psEsc(it.ans||"（未填写）")+'</span></div>'); });
+  h.push('<div class="ps-total">主观题合计（Part2）：'+p2+' / 20</div>');
+  h.push('<div class="ps-total">综合评定：'+psEsc(gradeVal()||"（未评定）")+'</div>');
+  var note=(document.getElementById("rv-note")||{value:""}).value||"";
+  h.push('<div class="ps-row" style="margin-top:7px;"><b>综合评语：</b>'+psEsc(note.trim()||"—")+'</div>');
+  box.innerHTML=h.join("");
+}
+function renderReview(d){
+  curReview=d; loadDraft();
+  var rp=document.getElementById("rv-report"); if(rp) rp.value="";
+  document.getElementById("rv-code").textContent=d.code||"------";
+  document.getElementById("rv-name").textContent=d.name||"—";
+  document.getElementById("rv-contact").textContent=d.contact||"—";
+  document.getElementById("rv-email").textContent=d.email||"—";
+  document.getElementById("rv-ts").textContent=d.ts||"—";
+  var pct=Math.round((d.p1rate||0)*100), pass=(d.p1rate||0)>=PASS_RATE;
+  document.getElementById("rv-score").textContent=(d.p1score||0)+"/"+(d.p1total||0)+" · "+pct+"%";
+  var vd=document.getElementById("rv-verdict"); vd.textContent=pass?"通过听辨硬门槛":"未通过听辨硬门槛"; vd.className="rv-badge "+(pass?"ok":"bad");
+  var body=document.getElementById("rv-body"); body.innerHTML="";
+
+  var s1=document.createElement("div"); s1.className="card";
+  s1.appendChild((function(){var k=document.createElement("span");k.className="kicker";k.textContent="Part 1 · 听辨硬门槛";return k;})());
+  s1.appendChild((function(){var h=document.createElement("h2");h.style.marginTop="6px";h.textContent="逐题作答与系统判分";return h;})());
+  var l1=document.createElement("div"); l1.className="rv-list";
+  (d.p1||[]).forEach(function(it,qi){
+    var ok=it.pick===it.correct;
+    var q=document.createElement("div"); q.className="rv-q";
+    var head=document.createElement("div"); head.className="rv-qhead";
+    var no=document.createElement("span"); no.className="rv-qno"; no.textContent=qi+1;
+    var qq=document.createElement("span"); qq.className="rv-qq"; qq.textContent=it.q;
+    var tag=document.createElement("span"); tag.className="rv-qtag "+(ok?"ok":"bad"); tag.textContent=ok?"正确":"错误";
+    head.appendChild(no); head.appendChild(qq); head.appendChild(tag); q.appendChild(head);
+    if(it.url) q.appendChild(createPlayer(it.url,"第 "+(qi+1)+" 段声音（复听）").el);
+    it.opts.forEach(function(op,oi){
+      var line=document.createElement("div"); line.className="rv-opt";
+      var isPick=oi===it.pick, isCor=oi===it.correct;
+      if(isCor) line.classList.add("correct");
+      if(isPick&&!isCor) line.classList.add("wrongpick");
+      var txt=OPTKEYS[oi]+". "+op;
+      if(isCor) txt+="（正确答案）";
+      if(isPick) txt+="　[候选人选择]";
+      line.textContent=txt; q.appendChild(line);
+    });
+    l1.appendChild(q);
+  });
+  s1.appendChild(l1); body.appendChild(s1);
+
+  var s2=document.createElement("div"); s2.className="card";
+  s2.appendChild((function(){var k=document.createElement("span");k.className="kicker";k.textContent="Part 2 · 视频声音描述";return k;})());
+  s2.appendChild((function(){var h=document.createElement("h2");h.style.marginTop="6px";h.textContent="视频描述（人工复核 · 复看后打分）";return h;})());
+  (d.p2||[]).forEach(function(it,si){
+    var item=document.createElement("div"); item.className="rv-song";
+    var hh=document.createElement("div"); hh.className="rv-song-h"; hh.textContent=(it.title||("视频"+(si+1)));
+    item.appendChild(hh);
+    var vp=createVideoPlayer(it.url,(it.title||("视频"+(si+1)))+"（复看 · 进度条可拖动）");
+    if(it.url) item.appendChild(vp.el); else { var ev=document.createElement("div");ev.className="rv-empty";ev.textContent="该段视频素材未接入，无法复看。";item.appendChild(ev); }
+    var tt=document.createElement("div"); tt.className="rv-song-t"; tt.textContent=it.ans||"（未填写）";
+    item.appendChild(tt);
+    item.appendChild(makeRater(si,10));
+    s2.appendChild(item);
+  });
+  body.appendChild(s2);
+
+  var grp=document.getElementsByName("rvgrade");
+  for(var i=0;i<grp.length;i++) grp[i].checked=(grp[i].value===rvDraft.g);
+  document.getElementById("rv-note").value=rvDraft.note||"";
+  refreshSubtotal();
+}
+function openReviewHash(h){
+  var m=String(h||"").match(/#r=(.+)$/);
+  if(!m) return false;
+  try{ renderReview(decObj(m[1])); show("view-review"); window.scrollTo({top:0}); return true; }
+  catch(e){ alert("答卷链接无效或已损坏。"); return false; }
+}
+
+/* ============================================================
+ * 结果
+ * ============================================================ */
+function showResult(){
+  markDone(state.name);
+  state.review=buildReview(); state.reviewUrl=reviewUrl(state.review);
+  var rl=document.getElementById("review-link"); if(rl) rl.value=state.reviewUrl;
+  var pass=state.p1Rate>=PASS_RATE, pct=Math.round(state.p1Rate*100);
+  document.getElementById("final-num").textContent=pct+"%";
+  var ring=document.getElementById("final-ring");
+  ring.classList.toggle("pass",pass); ring.classList.toggle("fail",!pass);
+  var v=document.getElementById("final-verdict"); v.className="verdict "+(pass?"pass":"fail"); v.textContent=pass?"通过听辨硬门槛":"未通过听辨硬门槛";
+  document.getElementById("result-code").textContent=state.code;
+  document.getElementById("btn-submit-all").onclick=function(){
+    window.open(prefillUrl({"姓名":state.name,"联系方式":state.contact,"邮箱":state.email,"网页版答卷链接":state.reviewUrl||""}),"_blank");
+  };
+
+  var body=document.getElementById("result-body"); body.innerHTML="";
+  var head=document.createElement("div"); head.className="result-item";
+  var h1=document.createElement("h3"); h1.textContent="基本信息";
+  var t1=document.createElement("div"); t1.className="rtxt";
+  t1.textContent="姓名/编号："+state.name+(state.contact?"\n联系方式："+state.contact:"")+"\n第一部分："+state.p1Score+"/"+state.p1.length+"（"+pct+"%）"+(pass?" · 通过":" · 未通过");
+  head.appendChild(h1); head.appendChild(t1); body.appendChild(head);
+
+  var p2h=document.createElement("div"); p2h.className="result-item";
+  var h2=document.createElement("h3"); h2.textContent="第二部分 · 视频声音描述";
+  p2h.appendChild(h2);
+  state.p2.forEach(function(vd,si){
+    var t=document.createElement("div"); t.className="rtxt";
+    t.textContent=(vd.title||("视频"+(si+1)))+"："+(state.p2Text[si]||"");
+    p2h.appendChild(t);
+  });
+  body.appendChild(p2h);
+
+  var lines=[];
+  lines.push("【音效标注人力能力筛选 · 结果】");
+  lines.push("测试码："+state.code);
+  lines.push("网页版答卷："+(state.reviewUrl||""));
+  lines.push("姓名/编号："+state.name+(state.contact?" | 联系方式："+state.contact:"")+" | 邮箱："+(state.email||""));
+  lines.push("第一部分 · 听辨硬门槛（"+state.p1Score+"/"+state.p1.length+"，得分率 "+pct+"%，"+(pass?"通过":"未通过")+"）：");
+  state.p1.forEach(function(q,qi){
+    var sel=state.p1Sel[qi];
+    var ans=(sel===undefined)?"未作答":q.shuffled[sel];
+    var tag=(sel===q.correctIdx)?"对":("错，正确："+q.shuffled[q.correctIdx]);
+    lines.push((qi+1)+". "+q.q+" | 你的答案："+ans+"（"+tag+"）");
+  });
+  lines.push("");
+  lines.push("第二部分 · 视频声音描述：");
+  state.p2.forEach(function(vd,si){ lines.push((vd.title||("视频"+(si+1)))+"："+(state.p2Text[si]||"")); });
+  lines.push("");
+  lines.push("说明：第一部分系统自动判分；第二部分请由招聘方人工复核。");
+  document.getElementById("result-txt").value=lines.join("\n");
+  state.resultText=lines.join("\n");
+  show("view-result");
+}
+
+/* ============================================================
+ * 流程
+ * ============================================================ */
+function startTest(){
+  var name=document.getElementById("name-input").value.trim();
+  if(!name){ document.getElementById("landing-msg").textContent="请先填写姓名/编号。"; msg("landing-msg",true); return; }
+  if(isDone(name)){ document.getElementById("landing-msg").textContent="编号「"+name+"」已完成测试，每人仅限一次；如需重测请联系招聘方。"; msg("landing-msg",true); return; }
+  msg("landing-msg",false);
+  state.name=name;
+  state.contact=document.getElementById("contact-input").value.trim();
+  var email=document.getElementById("email-input").value.trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ document.getElementById("landing-msg").textContent="请填写正确的邮箱（用于接收筛选结果通知）。"; msg("landing-msg",true); return; }
+  state.email=email;
+  state.code=genCode();
+  state.p1Sel={}; state.p2Text={};
+  state.p1=sample(SFX_BANK,PART1_COUNT).map(function(q){
+    var sh=shuffle(q.opts);
+    return { url:q.url, q:q.q, shuffled:sh, correctIdx:sh.indexOf(q.ans), kind:q.ans };
+  });
+  state.p2=sample(VIDEOS,PART2_COUNT);
+  renderPart1(); show("view-part1");
+}
+
+/* ===== 事件 ===== */
+document.getElementById("btn-start").addEventListener("click",startTest);
+document.getElementById("name-input").addEventListener("keydown",function(e){ if(e.key==="Enter") startTest(); });
+document.getElementById("btn-p1-submit").addEventListener("click",submitPart1);
+document.getElementById("btn-p2-start").addEventListener("click",function(){ renderPart2(); show("view-part2"); });
+document.getElementById("btn-p2-submit").addEventListener("click",submitPart2);
+document.getElementById("btn-copy").addEventListener("click",function(){
+  var ta=document.getElementById("result-txt"); ta.select();
+  var done=function(){ msg("copy-msg",true); setTimeout(function(){ msg("copy-msg",false); },2200); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(ta.value).then(done,function(){ try{document.execCommand("copy");done();}catch(e){} }); }
+  else{ try{document.execCommand("copy");done();}catch(e){} }
+});
+document.getElementById("btn-pick-resume").addEventListener("click",function(){ document.getElementById("resume-input").click(); });
+document.getElementById("resume-input").addEventListener("change",function(){
+  var f=this.files[0]; if(!f) return;
+  document.getElementById("resume-name").textContent=f.name;
+  document.getElementById("resume-name").classList.add("has");
+  state.resumeName=f.name;
+});
+document.getElementById("btn-submit-resume").addEventListener("click",function(){
+  document.getElementById("landing-msg").textContent="请先完成测试，再在结果页一键提交报名信息与简历（每人仅限一次）。";
+  msg("landing-msg",true);
+});
+
+function copyText(txt,then){
+  var done=function(){ then&&then(); };
+  function fallback(){ try{ var ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); }catch(e){} }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,fallback); } else fallback();
+}
+
+document.getElementById("btn-copy-link").addEventListener("click",function(){
+  var v=document.getElementById("review-link").value; if(!v) return;
+  copyText(v,function(){ msg("link-msg",true); setTimeout(function(){ msg("link-msg",false); },2200); });
+});
+document.getElementById("btn-open-link").addEventListener("click",function(){ if(state.reviewUrl) window.open(state.reviewUrl,"_blank"); });
+
+document.getElementById("btn-admin-base").addEventListener("click",function(){
+  window.open(FORM_URL,"_blank");
+});
+function gotoReviewInput(){
+  var v=document.getElementById("admin-link").value.trim(); if(!v) return;
+  var hash="", hi=v.indexOf("#r=");
+  if(hi>=0) hash=v.slice(hi);
+  else if(v.indexOf("r=")===0) hash="#"+v;
+  else if(/^[A-Za-z0-9_-]+$/.test(v)) hash="#r="+v;
+  if(!hash||!openReviewHash(hash)) alert("无法识别该答卷链接，请粘贴结果页生成的完整链接（含 #r=）。");
+}
+document.getElementById("btn-admin-open-link").addEventListener("click",gotoReviewInput);
+document.getElementById("admin-link").addEventListener("keydown",function(e){ if(e.key==="Enter") gotoReviewInput(); });
+
+document.getElementById("btn-rv-report").addEventListener("click",function(){
+  var txt=buildReportText(), ta=document.getElementById("rv-report");
+  ta.value=txt;
+  copyText(txt,function(){ msg("rv-report-msg",true); setTimeout(function(){ msg("rv-report-msg",false); },2600); });
+  ta.focus(); ta.select();
+});
+document.querySelectorAll('input[name="rvgrade"]').forEach(function(r){ r.addEventListener("change",saveDraft); });
+document.getElementById("rv-note").addEventListener("input",saveDraft);
+document.getElementById("btn-rv-print").addEventListener("click",function(){ renderPrintSheet(); window.print(); });
+document.getElementById("btn-rv-back").addEventListener("click",function(){ location.hash=""; show("view-landing"); });
+
+/* ===== 启动路由：URL 带 #r= 时直接渲染网页版答卷 ===== */
+openReviewHash(location.hash);
+</script>
+</body>
+</html>
